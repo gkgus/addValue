@@ -28,7 +28,7 @@ for i in range(csv_files.__len__()):
         for csv_row in csvreader:
             #헤더부분, csv끝단의 총 소요시간 제외하고 큐에 저장.
             if(csv_row[0]!='imageName' and csv_row[0]!='이미지 이름' and csv_row[0]!='' ):
-                csv_queue.put(['imgStart', csv_row[0], csv_row[1],  int(float(csv_row[2])*1000), int(float(csv_row[3])*1000)])
+                csv_queue.put(['imgStart', csv_row[0], csv_row[1],  int(csv_row[2]), int(csv_row[3])])
 
     outputFile_name = 'r'+str(i+1)+'_output.tsv'
     save_dir = os.path.join(output_dir,outputFile_name)
@@ -45,22 +45,33 @@ for i in range(csv_files.__len__()):
             # 헤더 읽기
             row = next(tsv_reader)
             # 헤더 추가
+            row = row[:-1] #마지막에 빈 탭을 삭제
             row.append('Presented Media name')
             row.append('Event Key value')
             result.append(row)
             
             currentQueue = []
+            currentQueue = csv_queue.get()
             for row in tsv_reader:
+                row = row[:-1]
+                # 큐의 [0]가 imgEnd이면 imgEnd부분 기록이 필요,
+                if (currentQueue[0] == 'imgEnd'):
+                    row.append(currentQueue[1])
+                    if (int(row[0])-8386 >= currentQueue[4]):
+                        print(row[0] + ": " + currentQueue[0])
+                        # 'Event' 위치에 imgEnd 기록.
+                        row[1] = currentQueue[0]
+                        currentQueue = []
 
-                #큐에서 값을 하나 가져옴
-                if(len(currentQueue)==0):
-                    if(csv_queue.empty()):
+                # currentQueue가 비어있으면 csv_queue에서 하나를 가져옴.
+                if (len(currentQueue) == 0):
+                    if (csv_queue.empty()):
                         currentQueue = ['end']
                     else:
                         currentQueue = csv_queue.get()
                 #큐의 [0]가 imgStart이면 imgStart부분 기록이 필요,
                 if(currentQueue[0]== 'imgStart'):
-                    if(int(row[0])>=currentQueue[3]):
+                    if(int(row[0])-8386>=currentQueue[3]):
                         print(row[0]+": "+currentQueue[0])
                         #'Event' 위치에 imgStart 기록.
                         row[1] = currentQueue[0]
@@ -70,13 +81,7 @@ for i in range(csv_files.__len__()):
                         #imgEnd 기록이 필요함.
                         currentQueue[0]='imgEnd'
 
-                #큐의 [0]가 imgEnd이면 imgEnd부분 기록이 필요,
-                if (currentQueue[0] == 'imgEnd'):
-                    if(int(row[0])>=currentQueue[4]):
-                        print(row[0]+": "+currentQueue[0])
-                        #'Event' 위치에 imgEnd 기록.
-                        row[1] = currentQueue[0]
-                        currentQueue = []
+
                 #현재 row를 result에 저장.
                 result.append(row)
             #결과값 저장.
